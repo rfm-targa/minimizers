@@ -4,12 +4,7 @@
 Purpose
 -------
 
-
-
-Expected input
---------------
-
-
+Compute the set of minimizers for DNA or Protein sequences.
 
 Code documentation
 ------------------
@@ -23,14 +18,55 @@ from multiprocessing import Pool
 from Bio import SeqIO
 
 
+def write_to_file(text, output_file, write_mode, end_char):
+    """ Writes a single text string to a file.
+
+        Parameters
+        ----------
+        text : str
+            Text to write to file.
+        output_file : str
+            Path to the output file.
+        write_mode : str
+            Write mode, `w` for write and `a` for append.
+            `w` mode overwrites contents of files.
+        end_char : str
+            Char to add to end of file.
+    """
+
+    with open(output_file, write_mode) as out:
+        out.write(text+end_char)
+
+
+def pickle_dumper(output_file, content):
+    """ Use the Pickle module to serialize an object.
+
+        Parameters
+        ----------
+        content : type
+            Variable that refers to the object that
+            will be serialized and written to the
+            output file.
+        output_file : str
+            Path to the output file.
+    """
+
+    with open(output_file, 'wb') as po:
+        pickle.dump(content, po)
+
+
 def import_sequences(fasta_path):
     """ Imports sequences from a FASTA file.
 
-        Args:
-            fasta_path (str): full path to the FASTA file.
+        Parameters
+        ----------
+        fasta_path : str
+            Path to a FASTA file.
 
-        Returns:
-            dictionary that has sequences ids as keys and DNA
+        Returns
+        -------
+        seqs_dict : dict
+            Dictionary that has sequences ids as keys and DNA
             sequences as values.
     """
 
@@ -41,7 +77,28 @@ def import_sequences(fasta_path):
 
 
 def sequence_kmerizer(sequence, k_value, offset=1, position=False):
-    """
+    """ Decomposes a sequence into kmers.
+
+        Parameters
+        ----------
+        sequence : str
+            Sequence to divide into kmers.
+        k_value : int
+            Value for the size k of kmers.
+        offset : int
+            Value to indicate offset of consecutive kmers.
+        position : bool
+            If the start position of the kmers in the sequence
+            should be stored.
+
+        Returns
+        -------
+        kmers : list
+            List with the kmers determined for the input
+            sequence. The list will contain strings if
+            it is not specified that positions should be
+            stored and tuples of kmer and start position
+            if the position is stored.
     """
 
     if position is False:
@@ -55,7 +112,21 @@ def sequence_kmerizer(sequence, k_value, offset=1, position=False):
 
 
 def generate_windows(kmers, adjacent_kmers):
-    """
+    """ Create groups of adjaent kmers.
+
+        Parameters
+        ----------
+        kmers : list
+            List with the kmers determined for a sequence.
+        adjacent_kmers : int
+            Number of adjacent kmers per group.
+
+        Returns
+        -------
+        windows : list
+            A list with one sublist per group of adjacent
+            kmers. Groups are created based on a sliding window
+            whose range is incremented by 1.
     """
 
     window_pos = range(0, len(kmers)-adjacent_kmers+1, 1)
@@ -66,7 +137,31 @@ def generate_windows(kmers, adjacent_kmers):
 
 def determine_minimizers(seqid, sequence, adjacent_kmers, k_value,
                          position=False):
-    """
+    """ Determine the minimizers for a sequence based on
+        lexicographical order.
+
+        Parameters
+        ----------
+        seqid : str
+            Sequence identifier/header.
+        sequence : str
+            String representing the sequence.
+        adjacent_kmers : int
+            Window size value. Number of adjacent kmers per group.
+        k_value : int
+            Value of k for kmer size.
+        position : bool
+            If the start position of the kmers in the sequence
+            should be stored.
+
+        Returns
+        -------
+        A list with the following elements:
+            seqid : str
+                Sequence identifier/header.
+            minimizers : list
+                A list with the set of minimizers determined
+                for the input sequence.
     """
 
     # break sequence into kmers
@@ -84,7 +179,17 @@ def determine_minimizers(seqid, sequence, adjacent_kmers, k_value,
 
 
 def default_helper(args):
-    """
+    """ Helper function to pass arguments to the
+        `determine_minimizers` function.
+
+        Parameters
+        ----------
+        args : list
+            List with list arguments to pass to function.
+
+        Returns
+        -------
+        The result of the `determine_minimizers` function.
     """
 
     return determine_minimizers(*args)
@@ -92,7 +197,33 @@ def default_helper(args):
 
 def determine_minimizers_skipper(seqid, sequence, adjacent_kmers,
                                  k_value, position=False):
-    """
+    """ Determine the minimizers for a sequence based on
+        lexicographical order. Skips windows that
+        cannot have a minimizer based on the minimizer
+        computed in the previous iteration.
+
+        Parameters
+        ----------
+        seqid : str
+            Sequence identifier/header.
+        sequence : str
+            String representing the sequence.
+        adjacent_kmers : int
+            Window size value. Number of adjacent kmers per group.
+        k_value : int
+            Value of k for kmer size.
+        position : bool
+            If the start position of the kmers in the sequence
+            should be stored.
+
+        Returns
+        -------
+        A list with the following elements:
+            seqid : str
+                Sequence identifier/header.
+            minimizers : list
+                A list with the set of minimizers determined
+                for the input sequence.
     """
 
     # break sequence into kmers
@@ -151,14 +282,40 @@ def determine_minimizers_skipper(seqid, sequence, adjacent_kmers,
 
 
 def skipper_helper(args):
-    """
+    """ Helper function to pass arguments to the
+        `determine_minimizers_skipper` function.
+
+        Parameters
+        ----------
+        args : list
+            List with list arguments to pass to function.
+
+        Returns
+        -------
+        The result of the `determine_minimizers_skipper` function.
     """
 
     return determine_minimizers_skipper(*args)
 
 
 def map_async_parallelizer(inputs, function, threads):
-    """
+    """ Create multiple processes to run a function in parallel
+        for multiple inputs.
+
+        Parameters
+        ----------
+        inputs : list
+            List with one sublist per input.
+        function
+            Function that will be parallelized.
+        threads : int
+            Number of precesses to create.
+
+        Returns
+        -------
+        results : list
+            List with the returned values for each
+            function call.
     """
 
     results = []
@@ -173,7 +330,7 @@ def map_async_parallelizer(inputs, function, threads):
 def main(input_file, output_file, output_format, k_value,
          window_size, position, mode, threads):
 
-    # divide bug files or read per chunk to reduce memory usage
+    # divide big files or read per chunk to reduce memory usage
     # pass files or chunks to compute minimizers and append
     # results to output file
     # pickle.dump() can be used to save several serialized objects
@@ -197,8 +354,7 @@ def main(input_file, output_file, output_format, k_value,
 
     # save results
     if output_format == 'binary':
-        with open(output_file, 'wb') as outfile:
-            pickle.dump(minimizers, outfile)
+        pickle_dumper(output_file, minimizers)
     elif output_format == 'csv':
         # create csv lines
         if position is True:
@@ -208,8 +364,9 @@ def main(input_file, output_file, output_format, k_value,
             csv_lines = ['{0},{1}'.format(m[0], ','.join(m[1]))
                          for m in minimizers]
 
-        with open(output_file, 'w') as outfile:
-            outfile.write('\n'.join(csv_lines))
+        csv_text = '\n'.join(csv_lines)
+
+        write_to_file(csv_text, output_file, 'w', '\n')
 
 
 def parse_arguments():
@@ -219,37 +376,48 @@ def parse_arguments():
 
     parser.add_argument('-i', type=str, required=True,
                         dest='input_file',
-                        help='')
+                        help='Path to a FASTA file with DNA or '
+                             'protein sequences.')
 
     parser.add_argument('-o', type=str, required=True,
                         dest='output_file',
-                        help='')
+                        help='Path to output to save results.')
 
     parser.add_argument('--of', type=str, required=False,
                         choices=['binary', 'csv'], default='csv',
                         dest='output_format',
-                        help='')
+                        help='Output file format. `binary` will '
+                             'use pickle to save results into a '
+                             'binary file. `csv` will save results '
+                             'to a CSV file with sequence identifiers '
+                             'in the first field followed by a minimizer '
+                             'per field.')
 
     parser.add_argument('--k', type=int, required=False,
                         default=4, dest='k_value',
-                        help='')
+                        help='Value for the size of the kmers.')
 
     parser.add_argument('--w', type=int, required=False,
                         default=4, dest='window_size',
-                        help='')
+                        help='Window size value. Minimizers will '
+                             'be determined based of groups of `w` '
+                             'adjacent kmers.')
 
     parser.add_argument('--p', action='store_false', required=False,
                         dest='position',
-                        help='')
+                        help='If the start position of the kmers '
+                             'should be stored.')
 
     parser.add_argument('--m', type=str, required=False,
                         choices=['default', 'skipper'],
                         default='default', dest='mode',
-                        help='')
+                        help='Defines function that will be used '
+                             'to determine minimizers.')
 
     parser.add_argument('--t', type=int, required=False,
                         default=1, dest='threads',
-                        help='')
+                        help='Number of CPU cores/threads used to '
+                             'parallelize minimizer computation.')
 
     args = parser.parse_args()
 
